@@ -1,0 +1,92 @@
+PaddleDetection介绍
+PaddleDetection是基于PaddlePaddle的端到端对象检测开发工具包，旨在帮助开发人员在训练模型的整个开发，优化性能和推理速度以及部署模型方面提供帮助。
+PaddleDetection在模块化设计中提供了各种对象检测体系结构，并提供了丰富的数据增强方法，网络组件，丢失功能等。
+PaddleDetection支持实际项目，例如工业质量检查，遥感图像对象检测以及具有模型等实际功能的自动检查。压缩和多平台部署。
+
+配置自己的训练集数据：
+1.将标注好导出的训练数据整理，包括：Annotations文件夹（存放xml标注信息），images文件夹（存放图片）
+2.通过代码生成label_list.txt,train.txt,val.txt三个文件，label_list.txt存放分类标签名，其他两个为训练集与验证集
+将数据集按照9：1的比例进行划分，并生成train.txt和val.txt进行训练
+
+		import random
+		import os
+		#生成train.txt和val.txt
+		random.seed(2020)
+		xml_dir  = '/home/aistudio/work/Annotations'#标签文件地址
+		img_dir = '/home/aistudio/work/images'#图像文件地址
+		path_list = list()
+		for img in os.listdir(img_dir):
+				img_path = os.path.join(img_dir,img)
+				xml_path = os.path.join(xml_dir,img.replace('jpg', 'xml'))
+				path_list.append((img_path, xml_path))
+		random.shuffle(path_list)
+		ratio = 0.9
+		train_f = open('/home/aistudio/work/train.txt','w') #生成训练文件
+		val_f = open('/home/aistudio/work/val.txt' ,'w')#生成验证文件
+
+		for i ,content in enumerate(path_list):
+				img, xml = content
+				text = img + ' ' + xml + '\n'
+				if i < len(path_list) * ratio:
+						train_f.write(text)
+				else:
+						val_f.write(text)
+		train_f.close()
+		val_f.close()
+
+		#生成标签文档
+		label = ['fall']#设置你想检测的类别
+		with open('/home/aistudio/work/label_list.txt', 'w') as f:
+				for text in label:
+						f.write(text+'\n')
+				
+3 模型训练
+用户在选择好模型后，只需要改动对应的配置文件后，只需要运行train.py文件，即可实现训练。
+
+本项目中，使用YOLOv3模型里的yolov3_mobilenet_v3_large_ssld_270e_voc.yml进行训练
+4.1配置文件示例
+我们使用configs/yolov3/yolov3_mobilenet_v3_large_ssld_270e_voc.yml配置进行训练。 
+在PaddleDetection2.0中，模块化做的更好，可以可自由修改覆盖各模块配置，进行自由组合
+修改configs/datasets/voc.yml文件配置
+metric: VOC
+map_type: 11point
+num_classes: 1 ---分类数量
+
+TrainDataset:
+  !VOCDataSet
+    dataset_dir: /www/wwwroot/default/PaddleDetection/dataset/dk ---自定义数据集地址
+    anno_path: train.txt
+    label_list: label_list.txt
+    data_fields: ['image', 'gt_bbox', 'gt_class', 'difficult']
+
+EvalDataset:
+  !VOCDataSet
+    dataset_dir: /www/wwwroot/default/PaddleDetection/dataset/dk
+    anno_path: val.txt
+    label_list: label_list.txt
+    data_fields: ['image', 'gt_bbox', 'gt_class', 'difficult']
+
+TestDataset:
+  !ImageFolder
+    anno_path: /www/wwwroot/default/PaddleDetection/dataset/dk/label_list.txt
+
+修改：configs/yolov3/base/optimizer_270e.yml
+epoch: 200 --训练批次，越大训练越旧
+base_lr: 0.001 --模型收敛率,越大训练越旧
+
+开始训练：
+sudo python3 tools/train.py -c configs/yolov3/yolov3_mobilenet_v3_large_ssld_270e_voc.yml --eval --use_vdl=True --vdl_log_dir="./output" --保存训练日记数据
+sudo python3 tools/train.py -c configs/yolov3/yolov3_mobilenet_v3_large_ssld_270e_voc.yml --不保存训练日记
+
+训练完模型评估：
+sudo python3 -u tools/eval.py -c configs/yolov3/yolov3_mobilenet_v3_large_ssld_270e_voc.yml \
+-o weights=output/yolov3_mobilenet_v3_large_ssld_270e_voc/model_final.pdparams
+
+模型预测：
+sudo python3 tools/infer.py 
+-c configs/yolov3/yolov3_mobilenet_v3_large_ssld_270e_voc.yml 
+-o weights=output/yolov3_mobilenet_v3_large_ssld_270e_voc/model_final.pdparams --infer_img=/home/aistudio/work/fall4.jpg
+
+优化方案
+
+可以通过增加数据集、选择更优化模型，增加训练的次数。
