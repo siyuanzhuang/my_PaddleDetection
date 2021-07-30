@@ -74,6 +74,15 @@ TestDataset:
 epoch: 200 --训练批次，越大训练越旧
 base_lr: 0.001 --模型收敛率,越大训练越旧
 
+需修改PaddleDetection/ppdet/data/source/voc.py文件
+
+def pascalvoc_label():
+    labels_map = {
+        'truck': 1,--修改为相应的目标分类
+        
+    }
+    return labels_map
+
 开始训练：
 sudo python3 tools/train.py -c configs/yolov3/yolov3_mobilenet_v3_large_ssld_270e_voc.yml --eval --use_vdl=True --vdl_log_dir="./output" --保存训练日记数据
 sudo python3 tools/train.py -c configs/yolov3/yolov3_mobilenet_v3_large_ssld_270e_voc.yml --不保存训练日记
